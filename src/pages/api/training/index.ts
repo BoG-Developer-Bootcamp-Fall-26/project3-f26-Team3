@@ -4,10 +4,11 @@ import Animal from "@server/mongodb/models/Animal";
 import TrainingLog from "@server/mongodb/models/TrainingLog";
 import type { NextApiRequest, NextApiResponse } from "next";
 import mongoose from "mongoose";
+import * as argon2 from "argon2";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    if (req.method !== "POST") {
-        res.setHeader("Allow", ["POST"]);
+    if (req.method !== "POST" && req.method !== "DELETE") {
+        res.setHeader("Allow", ["POST", "DELETE"]);
         return res.status(500).json({ error: `Method ${req.method} not supported` });
     }
 
@@ -15,6 +16,46 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await connectDB();
     } catch {
         return res.status(500).json({ error: "DB connection failed" });
+    }
+
+    /* Incorporate a way to delete users, animals,
+       and training logs (which would cause animal hoursTrained to be decremented)
+       and follow similar response formats as before for error handling.
+    */
+    // Handle DELETE request for training logs
+    if (req.method === "DELETE") {
+        const { id, password } = req.body ?? {};
+
+        if (!mongoose.isObjectIdOrHexString(id) ||
+            typeof password !== "string" || !password) {
+            return res.status(400).json({ error: "Invalid ID or password" });
+        }
+
+        try {
+            const log = await TrainingLog.findById(id);
+            if (!log) {
+                return res.status(400).json({ error: "Training log not found" });
+            }
+
+            const owner = await User.findById(log.user);
+            if (!owner || !(await argon2.verify(owner.password, password))) {
+                return res.status(401).json({ error: "Invalid credentials" });
+            }
+
+            const deleted = await TrainingLog.findByIdAndDelete(id);
+            if (!deleted) {
+                return res.status(400).json({ error: "Training log not found" });
+            }
+
+            await Animal.findByIdAndUpdate(
+                deleted.animal,
+                { $inc: { hoursTrained: -deleted.hours } }
+            );
+
+            return res.status(200).json({ id: deleted._id });
+        } catch {
+            return res.status(500).json({ error: "Failed to delete training log" });
+        }
     }
 
     const { user, animal, title, date, description } = req.body ?? {};
@@ -40,6 +81,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         const trainingLog = await TrainingLog.create({ user, animal, title, date: parsedDate, description, hours });
+        
+        // bug fix: update anial trained hours
+        await Animal.findByIdAndUpdate(animal, { $inc: { hoursTrained: hours } });
+
         return res.status(200).json({ id: trainingLog._id });
     } catch {
         return res.status(500).json({ error: "Failed to create training log" });
