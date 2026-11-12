@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
+import SearchBar from "@/components/SearchBar";
 import TrainingLogCard from "@/components/TrainingLogCard";
 import type { TrainingLog } from "@/utils/types";
 
 export default function AdminTrainingPage() {
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [error, setError] = useState("");
+    const [search, setSearch] = useState("");
+    const visibleLogs = logs.filter((log) =>
+        log.title.toLowerCase().includes(search.trim().toLowerCase())
+    );
 
     useEffect(() => {
         fetch("/api/admin/training")
@@ -22,13 +27,13 @@ export default function AdminTrainingPage() {
     }, []);
 
     return (
-        <DashboardLayout adminOnly>
+        <DashboardLayout adminOnly search={<SearchBar value={search} onChange={setSearch} placeholder="Search training logs" />}>
             <PageHeader title="All training logs" />
             <div className="p-4 md:p-8">
                 {error && <p className="text-red-600">{error}</p>}
-                {logs.length === 0 && <p className="text-gray-500">Nothing to show.</p>}
+                {visibleLogs.length === 0 && <p className="text-gray-500">Nothing to show.</p>}
                 <div className="flex flex-col gap-4">
-                    {logs.map((log) => (
+                    {visibleLogs.map((log) => (
                         <TrainingLogCard key={log._id} log={log} />
                     ))}
                 </div>
