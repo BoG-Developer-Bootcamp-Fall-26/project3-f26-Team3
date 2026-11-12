@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
+import SearchBar from "@/components/SearchBar";
 import TrainingLogCard from "@/components/TrainingLogCard";
 import { useUser } from "@/hooks/useUser";
 import type { TrainingLog } from "@/utils/types";
@@ -9,6 +10,10 @@ export default function TrainingLogsPage() {
     const { user } = useUser();
     const [logs, setLogs] = useState<TrainingLog[]>([]);
     const [error, setError] = useState("");
+    const [search, setSearch] = useState("");
+    const visibleLogs = logs.filter((log) =>
+        log.title.toLowerCase().includes(search.trim().toLowerCase())
+    );
 
     useEffect(() => {
         if (!user) return;
@@ -41,12 +46,12 @@ export default function TrainingLogsPage() {
     }
 
     return (
-        <DashboardLayout>
+        <DashboardLayout search={<SearchBar value={search} onChange={setSearch} placeholder="Search training logs" />}>
             <PageHeader title="Training logs" createLink="/training-logs/new" />
             <div className="flex flex-col gap-4 p-4 md:p-8">
                 {error && <p className="text-red-600">{error}</p>}
-                {logs.length === 0 && <p className="text-gray-500">No training logs to show.</p>}
-                {logs.map((log) => (
+                {visibleLogs.length === 0 && <p className="text-gray-500">No training logs to show.</p>}
+                {visibleLogs.map((log) => (
                     <TrainingLogCard
                         key={log._id}
                         log={log}
