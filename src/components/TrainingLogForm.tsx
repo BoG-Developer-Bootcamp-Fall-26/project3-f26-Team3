@@ -35,6 +35,7 @@ export default function TrainingLogForm({ log }: { log?: TrainingLog }) {
         e.preventDefault();
         if (!user) return;
         setError("");
+        let logSaved = false;
 
         try {
             const res = await fetch("/api/training", {
@@ -55,6 +56,7 @@ export default function TrainingLogForm({ log }: { log?: TrainingLog }) {
                 setError(data.error);
                 return;
             }
+            logSaved = true;
             if (!log) {
                 await updateAnimalHours(animal, Number(hours));
             } else if (log.animal && log.animal._id === animal) {
@@ -68,7 +70,9 @@ export default function TrainingLogForm({ log }: { log?: TrainingLog }) {
 
             router.push("/training-logs");
         } catch {
-            setError("Something went wrong, please try again");
+            setError(logSaved
+                ? "Training log saved, but animal hours could not be updated. Check the total before retrying."
+                : "Something went wrong, please try again");
         }
     }
 
@@ -120,9 +124,10 @@ export default function TrainingLogForm({ log }: { log?: TrainingLog }) {
 }
 async function updateAnimalHours(animal: string, hours: number) {
     if (hours === 0) return;
-    await fetch("/api/animal", {
+    const res = await fetch("/api/animal", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ animal, hours }),
     });
+    if (!res.ok) throw new Error("Could not update animal hours");
 }

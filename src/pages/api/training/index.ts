@@ -150,8 +150,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         const trainingLog = await TrainingLog.create({ user, animal, title, date: parsedDate, description, hours });
         
-        // bug fix: update anial trained hours
-        await Animal.findByIdAndUpdate(animal, { $inc: { hoursTrained: hours } });
 
         return res.status(200).json({ id: trainingLog._id });
     } catch {
